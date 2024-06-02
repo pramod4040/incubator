@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 import multiprocessing
 
+USE_PARALLEL_PROCESSING = False
+NUM_ROWS = 10  #  Number of rows to read from each TSV file
+
 
 def calculate_similarity(phrase1, phrase2):
     # Normalize the phrases by converting to lowercase
@@ -55,7 +58,7 @@ def read_tsv(file_path):
         # Iterate over each row in the TSV file
         for row in reader:
             # Append the row to the data list
-            if (len(data) > 6000):
+            if (len(data) > NUM_ROWS):
                 break
             data.append(row)
             
@@ -80,40 +83,62 @@ school_b_ids = [row[0] for row in school_list_B]
 similarity_matrix = np.zeros((len(school_a_ids), len(school_b_ids)))
 
 
-# Compute the similarity scores using dynamic programming
-
-# for i, school_a_data in enumerate(school_list_A):
-#     for j, school_b_data in enumerate(school_list_B):
-#         similarity_matrix[i, j] = calculate_similarity(school_a_data[2], school_b_data[1])
-
-
-# PARALLEL START
-
-def calculate_similarity_parallel(i, school_a_data, school_list_B):
-    similarities = []
-    for j, school_b_data in enumerate(school_list_B):
-        similarity = calculate_similarity(school_a_data[2], school_b_data[1])
-        similarities.append(similarity)
-    return similarities
+if USE_PARALLEL_PROCESSING:
+    print("Prallel Processing---->ON")
+    def calculate_similarity_parallel(i, school_a_data, school_list_B):
+        similarities = []
+        for j, school_b_data in enumerate(school_list_B):
+            similarity = calculate_similarity(school_a_data[2], school_b_data[1])
+            similarities.append(similarity)
+        return similarities
 
 
-if __name__ == "__main__":
-    num_processes = multiprocessing.cpu_count()  # Number of available CPU cores
-    pool = multiprocessing.Pool(processes=num_processes)
+    if __name__ == "__main__":
+        num_processes = multiprocessing.cpu_count()  # Number of available CPU cores
+        pool = multiprocessing.Pool(processes=num_processes)
 
-    results = []
+        results = []
+        for i, school_a_data in enumerate(school_list_A):
+            results.append(pool.apply_async(calculate_similarity_parallel, args=(i, school_a_data, school_list_B)))
+
+        # Wait for all processes to finish
+        pool.close()
+        pool.join()
+
+        # Retrieve and update results in similarity_matrix
+        for k, result in enumerate(results):
+            similarities = result.get()
+            similarity_matrix[k, :] = similarities  # Append similarities[1:]  # Rest are similarities for index i
+
+
+        # Find the indices of the highest scores in each row
+        highest_indices = np.argmax(similarity_matrix, axis=1)
+
+        similarity_df = pd.DataFrame(similarity_matrix, index=school_a_ids, columns=school_b_ids)
+
+
+        # Create a DataFrame to show the highest similarity score and corresponding school_b_id for each school_a_id
+        highest_scores_df = pd.DataFrame({
+            'school_a_id': school_a_ids,
+            'highest_score': similarity_matrix[np.arange(len(school_a_ids)), highest_indices],
+            'school_b_id': [school_b_ids[idx] for idx in highest_indices]
+        })
+
+
+        # Save the similarity matrix to a file if needed
+        similarity_df.to_csv('similarity_matrix.csv')
+
+        highest_scores_df.to_csv('highest_scores.csv')
+
+        # Display the similarity matrix
+        print(highest_scores_df)
+
+
+else:
+    print("Prallel Processing---->OFF")
     for i, school_a_data in enumerate(school_list_A):
-        results.append(pool.apply_async(calculate_similarity_parallel, args=(i, school_a_data, school_list_B)))
-
-    # Wait for all processes to finish
-    pool.close()
-    pool.join()
-
-     # Retrieve and update results in similarity_matrix
-    for k, result in enumerate(results):
-        similarities = result.get()
-        similarity_matrix[k, :] = similarities  # Append similarities[1:]  # Rest are similarities for index i
-
+        for j, school_b_data in enumerate(school_list_B):
+            similarity_matrix[i, j] = calculate_similarity(school_a_data[2], school_b_data[1])
 
     # Find the indices of the highest scores in each row
     highest_indices = np.argmax(similarity_matrix, axis=1)
@@ -136,33 +161,5 @@ if __name__ == "__main__":
 
     # Display the similarity matrix
     print(highest_scores_df)
-
-
-# PARALLEL END       
-
-
-
-
-# # Find the indices of the highest scores in each row
-# highest_indices = np.argmax(similarity_matrix, axis=1)
-
-# similarity_df = pd.DataFrame(similarity_matrix, index=school_a_ids, columns=school_b_ids)
-
-
-# # Create a DataFrame to show the highest similarity score and corresponding school_b_id for each school_a_id
-# highest_scores_df = pd.DataFrame({
-#     'school_a_id': school_a_ids,
-#     'highest_score': similarity_matrix[np.arange(len(school_a_ids)), highest_indices],
-#     'school_b_id': [school_b_ids[idx] for idx in highest_indices]
-# })
-
-
-# # Save the similarity matrix to a file if needed
-# similarity_df.to_csv('similarity_matrix.csv')
-
-# highest_scores_df.to_csv('highest_scores.csv')
-
-# # Display the similarity matrix
-# print(highest_scores_df)
 
 

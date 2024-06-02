@@ -1,18 +1,16 @@
-# Proposed Solution
+# Proposed Approach
 
-Lets calculate a MATCH SCORE, between all school and highest score will win the match making.
+Let's devise a method to determine a MATCH SCORE for each school, with the highest score indicating the best match.
 
-# How to calculate MATCH SCORE:
-We can discuss on that: 
+## How to Calculate the MATCH SCORE:
+We can explore various options for this:
 
-- As we have velthuis and school name in two different file, I have done, character matching between two name (english and nepali) and calculated the score. (Implementation: calculate_similarity)
+- Initially, I've implemented a character-matching algorithm between the English and Nepali names of schools. This was done using the `calculate_similarity` function.
+  
+- Additionally, we can extend this approach to include other fields such as district and apply weighting to compute an overall MATCH SCORE between schools.
 
-- Lets not stop on name, lets do same thing on district and other fields and calculated a weighted MATCH SCORE between school
+## Outcome
+The results will be stored in the file `highest_scores_6k.csv`.
 
-
-# Result
-highest_scores.csv
-
-
-# Need Help On
-- Generating velthuis for the district1 col of file school_list_A.tsv
+## Assistance Needed With
+- Generating the Velthuis transliteration for the 'district1' column in the `school_list_A.tsv` file.
